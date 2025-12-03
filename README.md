@@ -59,7 +59,6 @@
 ### **DevOps**
 - **Git, GitHub, GitHub Actions**
 - **Ubuntu**
-- **PaaS (деплой)**
 - **Логирование**
 - **Docker**
 
