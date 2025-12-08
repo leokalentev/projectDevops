@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Редактировать мероприятие</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 800px;
+            margin: 2rem auto;
+            transition: transform 0.3s ease;
+        }
+        .container:hover {
+            transform: translateY(-5px);
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+            text-align: center;
+            position: relative;
+        }
+        h2::before {
+            content: '';
+            position: absolute;
+            width: 50px;
+            height: 3px;
+            background: #3B71CA;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .form-group {
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        .form-group label {
+            position: absolute;
+            top: 12px;
+            left: 15px;
+            color: #999;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            background: white;
+            padding: 0 4px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: #3B71CA;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(59, 113, 202, 0.2);
+        }
+        .form-group input:not(:placeholder-shown) + label,
+        .form-group input:focus + label,
+        .form-group select:not([value='']):valid + label,
+        .form-group select:focus + label,
+        .form-group textarea:not(:placeholder-shown) + label,
+        .form-group textarea:focus + label {
+            top: -8px;
+            left: 12px;
+            font-size: 12px;
+            color: #3B71CA;
+            background: white;
+        }
+        .submit-btn {
+            background: #2ecc71;
+            color: white;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .submit-btn:hover {
+            background: #27ae60;
+        }
+        .submit-btn:active {
+            transform: scale(0.98);
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            .nav-links {
+                display: none;
+            }
+        }
+        .success-message {
+    background: #d4edda;
+    border-left: 6px solid #1a8d4b;
+    color: #155724;
+    padding: 1rem 2rem;
+    margin-bottom: 2rem;
+    border-radius: 8px;
+    position: relative;
+    animation: fade-in 0.5s;
+}
+
+.success-message button.close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-links">
+        <a href="usersHome.html">Мероприятия</a>
+    </div>
+    <button id="logout">Выйти</button>
+</nav>
+
+<div class="container">
+    <div class="success-message" id="successMessage" style="display: none;">
+        <span>Мероприятие успешно обновлено!</span>
+        <button class="close" onclick="document.getElementById('successMessage').style.display='none';">&times;</button>
+    </div>
+    <h2>Редактировать мероприятие</h2>
+    <p id="no-permission" style="display: none; color: red;">У вас нет прав на редактирование этого мероприятия.</p>
+    <form id="updateEventForm">
+        <div class="form-group">
+            <input type="text" id="title" placeholder=" " required />
+            <label>Название *</label>
+        </div>
+        <div class="form-group">
+            <textarea id="description" placeholder=" "></textarea>
+            <label>Описание</label>
+        </div>
+        <div class="form-group">
+            <select id="status" required>
+                <option value=""></option>
+            </select>
+            <label>Статус *</label>
+        </div>
+        <div class="form-group">
+            <input type="date" id="eventDate" />
+            <label>Дата проведения</label>
+        </div>
+        <div class="form-group">
+            <select id="categoryId" required>
+                <option value=""></option>
+            </select>
+            <label>Категория *</label>
+        </div>
+        <div class="form-group">
+            <select id="assigneeId" required>
+                <option value=""></option>
+            </select>
+            <label>Исполнитель *</label>
+        </div>
+        <button type="submit" class="submit-btn">Сохранить изменения</button>
+        <p id="error" class="error" style="color: red;"></p>
+    </form>
+</div>
+
+<script>
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'login.html';
+    }
+
+    document.getElementById('logout').addEventListener('click', () => {
+        sessionStorage.removeItem('token');
+        window.location.href = 'login.html';
+    });
+
+    const eventId = new URLSearchParams(window.location.search).get('id');
+    let originalEvent = {};
+
+    function loadUsers(selectedAssigneeId) {
+        fetch('/api/users', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(res => res.json())
+            .then(users => {
+                const sel = document.getElementById('assigneeId');
+                users.forEach(user => {
+                    const o = new Option(user.email, user.id);
+                    if (user.id === selectedAssigneeId) {
+                        o.selected = true;
+                    }
+                    sel.appendChild(o);
+                });
+            });
+    }
+
+    function loadStatuses(selectedStatus) {
+        fetch('/api/eventStatuses', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(res => res.json())
+            .then(list => {
+                const sel = document.getElementById('status');
+                list.forEach(st => {
+                    const o = new Option(st.name, st.slug);
+                    sel.appendChild(o);
+                });
+                if (selectedStatus) {
+                    sel.value = selectedStatus;
+                }
+            });
+    }
+
+    function loadCategories(selectedCategoryId) {
+        fetch('/api/categories', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(res => res.json())
+            .then(list => {
+                const sel = document.getElementById('categoryId');
+                list.forEach(cat => {
+                    const o = new Option(cat.name, cat.id);
+                    sel.appendChild(o);
+                });
+                if (selectedCategoryId) {
+                    sel.value = selectedCategoryId;
+                }
+            });
+    }
+
+    fetch(`/api/events/${eventId}`, { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(async res => {
+            if (!res.ok) throw new Error('Ошибка загрузки мероприятия');
+            const event = await res.json();
+
+            if (!event.canEdit) {
+                document.getElementById('updateEventForm').style.display = 'none';
+                document.getElementById('no-permission').style.display = 'block';
+                return; // дальше ничего не делаем
+            }
+
+            originalEvent = event;
+            document.getElementById('title').value = event.title || '';
+            document.getElementById('description').value = event.description || '';
+            document.getElementById('eventDate').value = event.eventDate?.substring(0, 10) || '';
+
+            loadStatuses(event.status);
+            loadCategories(event.category_id);
+            loadUsers(event.assignee_id);
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Не удалось загрузить мероприятие');
+        });
+
+    document.getElementById('updateEventForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const errorEl = document.getElementById('error');
+        errorEl.textContent = '';
+        errorEl.style.display = 'none';
+
+        const title       = document.getElementById('title').value.trim();
+        const description = document.getElementById('description').value.trim();
+        const status      = document.getElementById('status').value;
+        const eventDate   = document.getElementById('eventDate').value;
+        const categoryId  = document.getElementById('categoryId').value;
+        const assigneeId  = document.getElementById('assigneeId').value;
+
+        if (!title || !status || !categoryId || !assigneeId) {
+            errorEl.textContent = 'Пожалуйста, заполните все обязательные поля';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        const updatedEvent = {
+            title,
+            status,
+            eventDate,
+            category_id: +categoryId,
+            assigneeId: +assigneeId
+        };
+        if (description !== (originalEvent.description || '')) {
+            updatedEvent.description = description;
+        }
+
+        try {
+            const res = await fetch(`/api/events/${eventId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify(updatedEvent)
+            });
+            if (res.ok) {
+                document.getElementById('successMessage').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('successMessage').style.display = 'none';
+                }, 5000);
+            } else if (res.status === 403) {
+                errorEl.textContent = 'У вас больше нет прав на изменение этого мероприятия.';
+                errorEl.style.display = 'block';
+                document.getElementById('updateEventForm').style.display = 'none';
+                document.getElementById('no-permission').style.display = 'block';
+            } else {
+                const errData = await res.json();
+                errorEl.textContent = errData.message || 'Ошибка обновления мероприятия';
+                errorEl.style.display = 'block';
+            }
+        } catch {
+            errorEl.textContent = 'Сетевая ошибка. Попробуйте позже';
+            errorEl.style.display = 'block';
+        }
+    });
+
+    document.querySelector('.success-message .close').addEventListener('click', () => {
+        document.getElementById('successMessage').style.display = 'none';
+    });
+</script>
+</body>
+</html>
