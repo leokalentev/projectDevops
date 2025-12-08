@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Информация о категории мероприятия</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 800px;
+            margin: 2rem auto;
+            transition: transform 0.3s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+            position: relative;
+            text-align: center;
+        }
+
+        h2::before {
+            content: '';
+            position: absolute;
+            width: 50px;
+            height: 3px;
+            background: #3B71CA;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .event-info {
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+
+        .event-info p {
+            margin: 0.5rem 0;
+            color: #555;
+        }
+
+        .event-info strong {
+            color: #2c3e50;
+            display: inline-block;
+            min-width: 150px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #edit-category {
+            background: #3498db;
+            color: white;
+        }
+
+        #edit-category:hover {
+            background: #2980b9;
+        }
+
+        #delete-category {
+            background: #e74c3c;
+            color: white;
+        }
+
+        #delete-category:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-links">
+        <a href="home.html">Мероприятия</a>
+        <a href="statuses.html">Статусы мероприятий</a>
+        <a href="categories.html">Категории мероприятий</a>
+    </div>
+    <button id="logout">Выйти</button>
+</nav>
+
+<div class="container">
+    <h2>Информация о категории</h2>
+    <div class="event-info">
+        <p><strong>ID:</strong> <span id="category-id"></span></p>
+        <p><strong>Название:</strong> <span id="category-name"></span></p>
+        <p><strong>Дата создания:</strong> <span id="category-createdAt"></span></p>
+    </div>
+    <div class="btn-group">
+        <button id="edit-category">Изменить</button>
+        <button id="delete-category">Удалить</button>
+    </div>
+</div>
+
+<script>
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'login.html';
+    }
+
+    document.getElementById('logout').addEventListener('click', () => {
+        sessionStorage.removeItem('token');
+        window.location.href = 'login.html';
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const categoryId = urlParams.get('id');
+
+    fetch(`/api/categories/${categoryId}`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Ошибка загрузки категории');
+        return response.json();
+    })
+    .then(category => {
+        document.getElementById('category-id').textContent = category.id;
+        document.getElementById('category-name').textContent = category.name || '—';
+        document.getElementById('category-createdAt').textContent = category.createdAt || '—';
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Не удалось загрузить информацию о категории');
+    });
+
+    document.getElementById('edit-category').addEventListener('click', () => {
+        window.location.href = `updateCategory.html?id=${categoryId}`;
+    });
+
+    document.getElementById('delete-category').addEventListener('click', async () => {
+        if (!confirm('Вы действительно хотите удалить эту категорию?')) {
+            return;
+        }
+        try {
+            const res = await fetch(`/api/categories/${categoryId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (res.status === 204) {
+                alert('Категория успешно удалена');
+                window.location.href = 'categories.html';
+            } else {
+                const err = await res.json();
+                throw new Error(err.detail || 'Ошибка удаления категории');
+            }
+        } catch (e) {
+            console.error(e);
+            alert(e.message);
+        }
+    });
+</script>
+</body>
+</html>
