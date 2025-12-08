@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Информация о мероприятии (Пользователь)</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 800px;
+            margin: 2rem auto;
+            transition: transform 0.3s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+            position: relative;
+        }
+
+        h2::before {
+            content: '';
+            position: absolute;
+            width: 50px;
+            height: 3px;
+            background: #3B71CA;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .event-info {
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+
+        .event-info p {
+            margin: 0.5rem 0;
+            color: #555;
+        }
+
+        .event-info strong {
+            color: #2c3e50;
+            display: inline-block;
+            min-width: 150px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #edit-event {
+            background: #3498db;
+            color: white;
+        }
+
+        #edit-event:hover {
+            background: #2980b9;
+        }
+
+        #delete-event {
+            background: #e74c3c;
+            color: white;
+        }
+
+        #delete-event:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-links">
+        <a href="usersHome.html">Мероприятия</a>
+    </div>
+    <button id="logout">Выйти</button>
+</nav>
+
+<div class="container">
+    <h2>Информация о мероприятии</h2>
+    <div class="event-info">
+        <p><strong>Название:</strong> <span id="event-title"></span></p>
+        <p><strong>Описание:</strong> <span id="event-description"></span></p>
+        <p><strong>Статус:</strong> <span id="event-status"></span></p>
+        <p><strong>Дата проведения:</strong> <span id="event-date"></span></p>
+        <p><strong>Категория:</strong> <span id="event-category"></span></p>
+        <p><strong>Исполнитель:</strong> <span id="event-assignee"></span></p>
+        <p><strong>Создано:</strong> <span id="event-createdAt"></span></p>
+    </div>
+    <div class="btn-group">
+        <button id="edit-event">Изменить</button>
+        <button id="delete-event">Удалить</button>
+    </div>
+</div>
+
+<script>
+    const token = sessionStorage.getItem("token");
+    if (!token) window.location.href = "login.html";
+
+    document.getElementById("logout")?.addEventListener("click", () => {
+        sessionStorage.removeItem("token");
+        window.location.href = "login.html";
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const eventId = urlParams.get("id");
+
+    fetch(`/api/events/${eventId}`, {
+        headers: { Authorization: "Bearer " + token }
+    })
+    .then(r => {
+        if (!r.ok) throw new Error("Ошибка при загрузке мероприятия");
+        return r.json();
+    })
+    .then(async event => {
+        document.getElementById("event-title").textContent = event.title || "—";
+        document.getElementById("event-description").textContent = event.description || "—";
+        document.getElementById("event-status").textContent = event.status || "—";
+        document.getElementById("event-date").textContent = event.eventDate || "—";
+        document.getElementById("event-createdAt").textContent = event.createdAt || "—";
+
+        const categoryElement = document.getElementById("event-category");
+        if (event.category_id) {
+            try {
+                const res = await fetch(`/api/categories/${event.category_id}`, {
+                    headers: { Authorization: "Bearer " + token }
+                });
+                if (res.ok) {
+                    const cat = await res.json();
+                    categoryElement.textContent = cat.name || "—";
+                } else {
+                    categoryElement.textContent = "—";
+                }
+            } catch {
+                categoryElement.textContent = "Ошибка";
+            }
+        } else {
+            categoryElement.textContent = "—";
+        }
+
+        const assigneeElement = document.getElementById("event-assignee");
+        if (event.assignee_id) {
+            try {
+                const res = await fetch(`/api/users/${event.assignee_id}`, {
+                    headers: { Authorization: "Bearer " + token }
+                });
+                if (res.ok) {
+                    const user = await res.json();
+                    assigneeElement.textContent = user.email || "—";
+                } else {
+                    assigneeElement.textContent = "—";
+                }
+            } catch {
+                assigneeElement.textContent = "Ошибка";
+            }
+        } else {
+            assigneeElement.textContent = "—";
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Не удалось загрузить информацию о мероприятии");
+    });
+
+    document.getElementById("edit-event").addEventListener("click", () => {
+        window.location.href = `updateEventUsers.html?id=${eventId}`;
+    });
+
+    document.getElementById("delete-event").addEventListener("click", async () => {
+        if (!confirm("Вы действительно хотите удалить это мероприятие?")) return;
+        try {
+            const res = await fetch(`/api/events/${eventId}`, {
+                method: "DELETE",
+                headers: { Authorization: "Bearer " + token }
+            });
+            if (res.status === 204) {
+                alert("Мероприятие успешно удалено");
+                window.location.href = "usersHome.html";
+            } else {
+                const errObj = await res.json();
+                throw new Error(errObj.detail || "Ошибка удаления");
+            }
+        } catch (e) {
+            alert(e.message);
+        }
+    });
+</script>
+</body>
+</html>

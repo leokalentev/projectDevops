@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Информация о мероприятии</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 800px;
+            margin: 2rem auto;
+            transition: transform 0.3s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+            position: relative;
+        }
+
+        h2::before {
+            content: '';
+            position: absolute;
+            width: 50px;
+            height: 3px;
+            background: #3B71CA;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .event-info {
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+
+        .event-info p {
+            margin: 0.5rem 0;
+            color: #555;
+        }
+
+        .event-info strong {
+            color: #2c3e50;
+            display: inline-block;
+            min-width: 150px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #edit-event {
+            background: #3498db;
+            color: white;
+        }
+
+        #edit-event:hover {
+            background: #2980b9;
+        }
+
+        #delete-event {
+            background: #e74c3c;
+            color: white;
+        }
+
+        #delete-event:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-links">
+        <a href="home.html">Мероприятия</a>
+        <a href="statuses.html">Статусы</a>
+        <a href="categories.html">Категории</a>
+    </div>
+    <button id="logout">Выйти</button>
+</nav>
+
+<div class="container">
+    <h2>Информация о мероприятии</h2>
+    <div class="event-info">
+        <p><strong>ID:</strong> <span id="event-id"></span></p>
+        <p><strong>Название:</strong> <span id="event-title"></span></p>
+        <p><strong>Описание:</strong> <span id="event-description"></span></p>
+        <p><strong>Статус:</strong> <span id="event-status"></span></p>
+        <p><strong>Дата проведения:</strong> <span id="event-date"></span></p>
+        <p><strong>Категории:</strong> <span id="event-categories"></span></p>
+        <p><strong>Исполнитель:</strong> <span id="event-assignee"></span></p>
+        <p><strong>Создано:</strong> <span id="event-createdAt"></span></p>
+    </div>
+    <div class="btn-group">
+        <button id="edit-event">Изменить</button>
+        <button id="delete-event">Удалить</button>
+    </div>
+</div>
+
+<script>
+    const token = sessionStorage.getItem('token');
+    if (!token) window.location.href = 'login.html';
+
+    document.getElementById('logout').addEventListener('click', () => {
+        sessionStorage.removeItem('token');
+        window.location.href = 'login.html';
+    });
+
+    const eventId = new URLSearchParams(window.location.search).get('id');
+
+    async function fetchData(url) {
+        const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        return res.json();
+    }
+
+    fetchData(`/api/events/${eventId}`)
+    .then(async event => {
+        document.getElementById('event-id').textContent = event.id;
+        document.getElementById('event-title').textContent = event.title || '—';
+        document.getElementById('event-description').textContent = event.description || '—';
+        document.getElementById('event-status').textContent = event.status || '—';
+        document.getElementById('event-date').textContent = event.eventDate ? event.eventDate.substring(0,10) : '—';
+        document.getElementById('event-createdAt').textContent = event.createdAt ? event.createdAt.substring(0,10) : '—';
+
+        let categoryName = '—';
+        if (event.category_id) {
+            try {
+                const category = await fetchData(`/api/categories/${event.category_id}`);
+                categoryName = category.name || 'Неизвестно';
+            } catch {
+                categoryName = 'Ошибка загрузки';
+            }
+        }
+        document.getElementById('event-categories').textContent = categoryName;
+
+        // Загрузка исполнителя
+        let assigneeName = '—';
+        if (event.assignee_id) {
+            try {
+                const user = await fetchData(`/api/users/${event.assignee_id}`);
+                assigneeName = user?.email || 'Неизвестно';
+            } catch {
+                assigneeName = 'Ошибка загрузки';
+            }
+        }
+        document.getElementById('event-assignee').textContent = assigneeName;
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Ошибка загрузки информации о мероприятии');
+    });
+
+    document.getElementById('edit-event').addEventListener('click', () => {
+        window.location.href = `updateEvent.html?id=${eventId}`;
+    });
+
+    document.getElementById('delete-event').addEventListener('click', async () => {
+        if (!confirm('Удалить мероприятие?')) return;
+        try {
+            const res = await fetch(`/api/events/${eventId}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+            if (res.status === 204) window.location.href = 'home.html';
+            else {
+                const errData = await res.json();
+                throw errData;
+            }
+        } catch (e) {
+            alert(e.detail || 'Ошибка удаления');
+        }
+    });
+</script>
+</body>
+</html>
