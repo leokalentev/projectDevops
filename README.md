@@ -4,7 +4,7 @@
 
 ### Сайт
 
-[![Перейти](https://cursovay.onrender.com)](https://cursovay.onrender.com)
+[![Перейти](http://localhost:8080/)](http://localhost:8080/)
 
 ---
 
